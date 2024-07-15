@@ -4,11 +4,11 @@ using Godot;
 /// Example Network Adapter
 /// Use the built-in multiplayer HLAPI & RPCs
 /// </summary>
-public class RPCNetworkAdaptor : NetworkAdaptor
+public partial class RPCNetworkAdaptor : NetworkAdaptor
 {
     public override void SendInputTick (int peerID, byte[] msg)
     {
-        RpcUnreliableId(peerID, nameof(RIT), msg);
+        RpcId(peerID, nameof(RIT), msg);
     }
 
     public override void PingPeer (int peerID, byte[] pingInformations)
@@ -21,21 +21,21 @@ public class RPCNetworkAdaptor : NetworkAdaptor
         RpcId(peerID, nameof(PingBack), pingInformations);
     }
     
-    [Remote]
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)]
     public void RIT (byte[] msg)
     {
-        EmitSignal(nameof(ReceivedInputTick), GetTree().GetRpcSenderId(), msg);
+        EmitSignal(nameof(ReceivedInputTick), Multiplayer.GetRemoteSenderId(), msg);
     }
 
-    [Remote]
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)]
     public void Ping (byte[] msg)
     {
-        EmitSignal(nameof(Pinged), GetTree().GetRpcSenderId(), msg);
+        EmitSignal(nameof(Pinged), Multiplayer.GetRemoteSenderId(), msg);
     }
     
-    [Remote]
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)]
     public void PingBack (byte[] msg)
     {
-        EmitSignal(nameof(PingedBack), GetTree().GetRpcSenderId(), msg);
+        EmitSignal(nameof(PingedBack), Multiplayer.GetRemoteSenderId(), msg);
     }
 }

@@ -2,11 +2,11 @@ extends Node
 
 func _ready() -> void:
 	#SyncManager.connect("RollbackFlagged", self, "_on_SyncManager_rollback_flagged")
-	SyncManager.connect("SkipTickFlagged", self, "_on_SyncManager_skip_ticks_flagged")
+	SyncManager.connect("SkipTickFlagged", Callable(self, "_on_SyncManager_skip_ticks_flagged"))
 	#SyncManager.connect("RemoteStateMismatch", self, "_on_SyncManager_remote_state_mismatch")
-	SyncManager.connect("PeerPingedBack", self, "_on_SyncManager_peer_pinged_back")
-	SyncManager.connect("StateLoaded", self, "_on_SyncManager_state_loaded")
-	SyncManager.connect("TickFinished", self, "_on_SyncManager_tick_finished")
+	SyncManager.connect("PeerPingedBack", Callable(self, "_on_SyncManager_peer_pinged_back"))
+	SyncManager.connect("StateLoaded", Callable(self, "_on_SyncManager_state_loaded"))
+	SyncManager.connect("TickFinished", Callable(self, "_on_SyncManager_tick_finished"))
 
 func _on_SyncManager_skip_ticks_flagged(count: int) -> void:
 	print ("-----")

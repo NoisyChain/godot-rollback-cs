@@ -1,7 +1,7 @@
-﻿using Godot;
+using Godot;
 using Godot.Collections;
 
-public class StateBufferFrame : Reference
+public partial class StateBufferFrame : RefCounted
 {
     public int Tick;
     public Dictionary<string, Dictionary<string, string>> Data;

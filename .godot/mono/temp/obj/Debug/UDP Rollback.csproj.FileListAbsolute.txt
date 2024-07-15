@@ -1,0 +1,12 @@
+D:\godot-rollback-cs-master4\.godot\mono\temp\obj\Debug\UDP Rollback.csproj.AssemblyReference.cache
+D:\godot-rollback-cs-master4\.godot\mono\temp\obj\Debug\UDP Rollback.GeneratedMSBuildEditorConfig.editorconfig
+D:\godot-rollback-cs-master4\.godot\mono\temp\obj\Debug\UDP Rollback.AssemblyInfoInputs.cache
+D:\godot-rollback-cs-master4\.godot\mono\temp\obj\Debug\UDP Rollback.AssemblyInfo.cs
+D:\godot-rollback-cs-master4\.godot\mono\temp\obj\Debug\UDP Rollback.csproj.CoreCompileInputs.cache
+D:\godot-rollback-cs-master4\.godot\mono\temp\bin\Debug\UDP Rollback.deps.json
+D:\godot-rollback-cs-master4\.godot\mono\temp\bin\Debug\UDP Rollback.dll
+D:\godot-rollback-cs-master4\.godot\mono\temp\bin\Debug\UDP Rollback.pdb
+D:\godot-rollback-cs-master4\.godot\mono\temp\obj\Debug\UDP Rollback.dll
+D:\godot-rollback-cs-master4\.godot\mono\temp\obj\Debug\refint\UDP Rollback.dll
+D:\godot-rollback-cs-master4\.godot\mono\temp\obj\Debug\UDP Rollback.pdb
+D:\godot-rollback-cs-master4\.godot\mono\temp\obj\Debug\ref\UDP Rollback.dll

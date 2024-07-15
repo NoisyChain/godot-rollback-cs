@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Godot;
 
-public class Peer : Reference
+public partial class Peer : RefCounted
 {
     public int PeerID;
     

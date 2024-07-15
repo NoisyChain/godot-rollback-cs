@@ -1,11 +1,11 @@
 using Godot;
 using Godot.Collections;
 
-public class SpawnManager : Node, INetworkable
+public partial class SpawnManager : Node, INetworkable
 {
     public static SpawnManager singleton;
     [Signal]
-    public delegate void SceneSpawned (string signalName, Node spawnedNode, PackedScene scene, Dictionary data);
+    public delegate void SceneSpawnedEventHandler (string signalName, Node spawnedNode, PackedScene scene, Dictionary data);
     
     private Dictionary<string, Dictionary> spawnRecords = new Dictionary<string, Dictionary>();
     private Dictionary<string, Node> spawnedNodes = new Dictionary<string, Node>();
@@ -15,7 +15,7 @@ public class SpawnManager : Node, INetworkable
     {
         AddToGroup("network_sync");
         singleton = this;
-        SyncManager.singleton.Connect(nameof(SyncManager.SyncStopped), this, nameof(OnSyncManagerSyncStopped));
+        SyncManager.singleton.Connect(nameof(SyncManager.SyncStopped), new Callable(this, nameof(OnSyncManagerSyncStopped)));
     }
 
     public void OnSyncManagerSyncStopped ()
@@ -38,7 +38,7 @@ public class SpawnManager : Node, INetworkable
     public Node Spawn (string name, Node parent, PackedScene scene, Dictionary data, bool rename = true,
         string signal = "")
     {
-        var spawnedNode = scene.Instance();
+        var spawnedNode = scene.Instantiate();
         if (signal == "")
         {
             signal = name;
@@ -54,7 +54,7 @@ public class SpawnManager : Node, INetworkable
 
         if (spawnedNode.HasMethod("NetworkSpawnPreprocess"))
         {
-            data = spawnedNode.Call("NetworkSpawnPreprocess", data) as Dictionary;
+            data = (Dictionary)spawnedNode.Call("NetworkSpawnPreprocess", data);
         }
 
         if (spawnedNode.HasMethod("NetworkSpawn"))
@@ -67,7 +67,7 @@ public class SpawnManager : Node, INetworkable
             {"name", spawnedNode.Name},
             {"parent", parent.GetPath().ToString()},
             {"scene", scene.ResourcePath},
-            {"data", JSON.Print(data)},
+            {"data", Json.Stringify(data)},
             {"signal_name", signal}
         };
 
@@ -103,15 +103,15 @@ public class SpawnManager : Node, INetworkable
 
         return new Dictionary<string, string>
         {
-            {"spawn_records", JSON.Print(spawnRecords)},
-            {"counter", JSON.Print(counter)}
+            {"spawn_records", Json.Stringify(spawnRecords)},
+            {"counter", Json.Stringify(counter)}
         };
     }
 
     public void LoadState (Dictionary<string, string> state)
     {
-        Dictionary readSpawnRecords = JSON.Parse(state["spawn_records"]).Result as Dictionary;
-        Dictionary readCounter = JSON.Parse(state["counter"]).Result as Dictionary;
+        Dictionary readSpawnRecords = (Dictionary)Json.ParseString(state["spawn_records"]);
+        Dictionary readCounter = (Dictionary)Json.ParseString(state["counter"]);
         spawnRecords = new Dictionary<string, Dictionary>(readSpawnRecords.Duplicate());
         counter = new Dictionary<string, int>(readCounter.Duplicate());
 
@@ -149,11 +149,11 @@ public class SpawnManager : Node, INetworkable
             {
                 var spawnRecord = spawnRecords[nodePath];
 
-                var parent = GetTree().CurrentScene.GetNode(spawnRecord["parent"] as NodePath);
-                var scene = ResourceLoader.Load<PackedScene>(spawnRecord["scene"] as string);
+                var parent = GetTree().CurrentScene.GetNode((NodePath)spawnRecord["parent"]);
+                var scene = ResourceLoader.Load<PackedScene>((string)spawnRecord["scene"]);
 
-                var spawnedNode = scene.Instance();
-                spawnedNode.Name = spawnRecord["name"] as string;
+                var spawnedNode = scene.Instantiate();
+                spawnedNode.Name = (string)spawnRecord["name"];
                 parent.AddChild(spawnedNode);
 
                 if (spawnedNode.HasMethod("NetworkSpawn"))
@@ -162,7 +162,7 @@ public class SpawnManager : Node, INetworkable
                 }
 
                 spawnedNodes[nodePath] = spawnedNode;
-                EmitSignal(nameof(SceneSpawned), spawnRecord["signal_name"], spawnedNode, scene, JSON.Parse(spawnRecord["data"] as string).Result as Dictionary);
+                EmitSignal(nameof(SceneSpawned), spawnRecord["signal_name"], spawnedNode, scene, (Dictionary)Json.ParseString((string)spawnRecord["data"]));
             }
         }
     }

@@ -1,12 +1,12 @@
-﻿using Godot;
+using Godot;
 using Godot.Collections;
 
-public class NetworkAnimationPlayer : AnimationPlayer, INetworkable
+public partial class NetworkAnimationPlayer : AnimationPlayer, INetworkable
 {
     public override void _Ready ()
     {
         MethodCallMode = AnimationMethodCallMode.Immediate;
-        PlaybackProcessMode = AnimationProcessMode.Manual;
+        PlaybackProcessMode = AnimationProcessCallback.Manual;
     }
 
     public Dictionary<string, string> SaveState ()

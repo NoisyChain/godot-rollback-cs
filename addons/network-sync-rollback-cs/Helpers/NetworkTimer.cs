@@ -1,7 +1,7 @@
-﻿using Godot;
+using Godot;
 using Godot.Collections;
 
-public class NetworkTimer : Node, INetworkable
+public partial class NetworkTimer : Node, INetworkable
 {
     [Export] private bool autostart;
     [Export] private bool oneShot;
@@ -12,11 +12,11 @@ public class NetworkTimer : Node, INetworkable
 
     private bool running = false;
 
-    [Signal] public delegate void Timeout ();
+    [Signal] public delegate void TimeoutEventHandler ();
 
     public override void _Ready ()
     {
-        SyncManager.singleton.Connect(nameof(SyncManager.SyncStopped), this, nameof(OnSyncManagerSyncStopped));
+        SyncManager.singleton.Connect(nameof(SyncManager.SyncStopped), new Callable(this, nameof(OnSyncManagerSyncStopped)));
         if (autostart)
             Start();
     }

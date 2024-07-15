@@ -1,0 +1,15 @@
+res://Main.tscn
+res://Player.tscn
+res://addons/network-sync-rollback-cs/Adapters/Base/NetworkAdaptor.cs
+res://addons/network-sync-rollback-cs/Adapters/RPCNetworkAdaptor.cs
+res://addons/network-sync-rollback-cs/Classes/InputBufferFrame.cs
+res://addons/network-sync-rollback-cs/Classes/InputForPlayer.cs
+res://addons/network-sync-rollback-cs/Classes/LocalPeerInputs.cs
+res://addons/network-sync-rollback-cs/Classes/Peer.cs
+res://addons/network-sync-rollback-cs/Classes/StateBufferFrame.cs
+res://addons/network-sync-rollback-cs/Helpers/NetworkAnimationPlayer.cs
+res://addons/network-sync-rollback-cs/Helpers/NetworkTimer.cs
+res://addons/network-sync-rollback-cs/SpawnManager.cs
+res://addons/network-sync-rollback-cs/SyncManager.cs
+res://demo_scripts/Main.cs
+res://demo_scripts/Player.cs

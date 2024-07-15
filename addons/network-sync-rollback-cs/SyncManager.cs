@@ -19,7 +19,7 @@ enum InputMessageKey
 /// This beast handle all the sync & rollback logic
 /// Singleton pattern
 /// </summary>
-public class SyncManager : Node
+public partial class SyncManager : Node
 {
     public static SyncManager singleton;
 
@@ -61,23 +61,23 @@ public class SyncManager : Node
     private G.Dictionary<int, G.Array<StateBufferFrame>> _loggedRemoteState = new G.Dictionary<int, G.Array<StateBufferFrame>>();
     private G.Dictionary<string, G.Array<G.Dictionary<string, string>>> interpolationState = new G.Dictionary<string, G.Array<G.Dictionary<string, string>>>();
 
-    [Signal] public delegate void SyncStarted ();
-    [Signal] public delegate void SyncStopped ();
-    [Signal] public delegate void SyncLost ();
-    [Signal] public delegate void SyncRegained ();
-    [Signal] public delegate void SyncError (string msg);
+    [Signal] public delegate void SyncStartedEventHandler ();
+    [Signal] public delegate void SyncStoppedEventHandler ();
+    [Signal] public delegate void SyncLostEventHandler ();
+    [Signal] public delegate void SyncRegainedEventHandler ();
+    [Signal] public delegate void SyncErrorEventHandler (string msg);
     
-    [Signal] public delegate void SkipTickFlagged (int tick);
-    [Signal] public delegate void RollbackFlagged (int tick, int peerId, LocalPeerInputs localInput, LocalPeerInputs remoteInput);
-    [Signal] public delegate void RemoteStateMismatch (int tickn, int peerId, StateBufferFrame localState, StateBufferFrame remoteState);
+    [Signal] public delegate void SkipTickFlaggedEventHandler (int tick);
+    [Signal] public delegate void RollbackFlaggedEventHandler (int tick, int peerId, LocalPeerInputs localInput, LocalPeerInputs remoteInput);
+    [Signal] public delegate void RemoteStateMismatchEventHandler (int tickn, int peerId, StateBufferFrame localState, StateBufferFrame remoteState);
     
-    [Signal] public delegate void PeerAdded (int id);
-    [Signal] public delegate void PeerRemoved (int id);
-    [Signal] public delegate void PeerPingedBack (Peer peer);
+    [Signal] public delegate void PeerAddedEventHandler (int id);
+    [Signal] public delegate void PeerRemovedEventHandler (int id);
+    [Signal] public delegate void PeerPingedBackEventHandler (Peer peer);
 
-    [Signal] public delegate void StateLoaded (int rollbackTicks);
-    [Signal] public delegate void TickFinished (bool isRollback);
-    [Signal] public delegate void SceneSpawned (string name, Node spawnedNode, PackedScene scene, Dictionary data);
+    [Signal] public delegate void StateLoadedEventHandler (int rollbackTicks);
+    [Signal] public delegate void TickFinishedEventHandler (bool isRollback);
+    [Signal] public delegate void SceneSpawnedEventHandler (string name, Node spawnedNode, PackedScene scene, Dictionary data);
 
     private void _Debug (int tick, int peerID, LocalPeerInputs localInput, LocalPeerInputs remoteInput)
     {
@@ -91,24 +91,24 @@ public class SyncManager : Node
     public override void _Ready ()
     {
         singleton = this;
-        Connect(nameof(RollbackFlagged), this, nameof(_Debug));
+        Connect(nameof(RollbackFlagged), new Callable(this, nameof(_Debug)));
         
         // TODO move to NetworkAdaptor
-        GetTree().Connect("network_peer_disconnected", this, nameof(RemovePeer));
-        GetTree().Connect("server_disconnected", this, nameof(Stop));
+        Multiplayer.Connect("peer_disconnected", new Callable(this, nameof(RemovePeer)));
+        Multiplayer.Connect("server_disconnected", new Callable(this, nameof(Stop)));
         
         _pingTimer = new Timer();
         _pingTimer.WaitTime = PING_FREQUENCY;
         _pingTimer.Autostart = true;
         _pingTimer.OneShot = false;
-        _pingTimer.PauseMode = PauseModeEnum.Process;
-        _pingTimer.Connect("timeout", this, nameof(OnPingTimerTimeout));
+        _pingTimer.ProcessMode = ProcessModeEnum.Always;//PauseModeEnum.Process;
+        _pingTimer.Connect("timeout", new Callable(this, nameof(OnPingTimerTimeout)));
         AddChild(_pingTimer);
 
         _spawnManager = new SpawnManager();
         _spawnManager.Name = "SpawnManager";
         AddChild(_spawnManager);
-        _spawnManager.Connect(nameof(SpawnManager.SceneSpawned), this, nameof(OnSpawnManagerSceneSpawned));
+        _spawnManager.Connect(nameof(SpawnManager.SceneSpawned), new Callable(this, nameof(OnSpawnManagerSceneSpawned)));
 
         if (networkAdaptor == null)
         {
@@ -121,7 +121,7 @@ public class SyncManager : Node
         if (networkAdaptor != null)
         {
             networkAdaptor.Detach(this);
-            networkAdaptor.Disconnect(nameof(NetworkAdaptor.ReceivedInputTick), this, nameof(ReceiveInputTick));
+            networkAdaptor.Disconnect(nameof(NetworkAdaptor.ReceivedInputTick), new Callable(this, nameof(ReceiveInputTick)));
             RemoveChild(networkAdaptor);
             networkAdaptor.QueueFree();
         }
@@ -129,10 +129,9 @@ public class SyncManager : Node
         networkAdaptor = adaptor;
         networkAdaptor.Name = "Network Adaptor";
         AddChild(networkAdaptor);
-        networkAdaptor.Connect(nameof(NetworkAdaptor.ReceivedInputTick), this,
-            nameof(ReceiveInputTick));
-        networkAdaptor.Connect(nameof(NetworkAdaptor.Pinged), this, nameof(OnPinged));
-        networkAdaptor.Connect(nameof(NetworkAdaptor.PingedBack), this, nameof(OnPingedBack));
+        networkAdaptor.Connect(nameof(NetworkAdaptor.ReceivedInputTick), new Callable(this, nameof(ReceiveInputTick)));
+        networkAdaptor.Connect(nameof(NetworkAdaptor.Pinged), new Callable(this, nameof(OnPinged)));
+        networkAdaptor.Connect(nameof(NetworkAdaptor.PingedBack), new Callable(this, nameof(OnPingedBack)));
         networkAdaptor.Attach(this);
     }
 
@@ -148,11 +147,11 @@ public class SyncManager : Node
     public void AddPeer (int id)
     {
         Debug.Assert(!_peers.ContainsKey(id), "Peer with ID: " + id + " already exists");
-        Debug.Assert(id != GetTree().GetNetworkUniqueId(), "Cannot add ourselves in the SyncManager !");
+        Debug.Assert(id != Multiplayer.GetUniqueId(), "Cannot add ourselves in the SyncManager !");
 
         if (_peers.ContainsKey(id))
             return;
-        if (id == GetTree().GetNetworkUniqueId())
+        if (id == Multiplayer.GetUniqueId())
             return;
         
         _peers[id] = new Peer(id);
@@ -190,11 +189,11 @@ public class SyncManager : Node
     private void OnPingTimerTimeout ()
     {
         // get the current timestamp
-        ulong systemTime = OS.GetSystemTimeMsecs();
+        ulong systemTime = Time.GetTicksMsec();
         // loop through every peers
         foreach (int id in _peers.Keys)
         {
-            if (id == GetTree().GetNetworkUniqueId()) continue;
+            if (id == Multiplayer.GetUniqueId()) continue;
             
             // Create a dictionary with the timestamp
             Dictionary msg = new Dictionary()
@@ -202,7 +201,7 @@ public class SyncManager : Node
                 { "local_time", systemTime.ToString() }
             };
             // Send it through the NetAdapter
-            networkAdaptor.PingPeer(id, GD.Var2Bytes(msg));
+            networkAdaptor.PingPeer(id, GD.VarToBytes(msg));
         }
     }
 
@@ -210,23 +209,23 @@ public class SyncManager : Node
     private void OnPinged (int peerID, byte[] message)
     {
         // Deserialize
-        Dictionary pingInfo = GD.Bytes2Var(message) as Dictionary;
+        Dictionary pingInfo = (Dictionary)GD.BytesToVar(message);
         
-        if (peerID == GetTree().GetNetworkUniqueId()) return;
+        if (peerID == Multiplayer.GetUniqueId()) return;
         
         // Add a new entry with the actual timestamp
-        pingInfo["remote_time"] = OS.GetSystemTimeMsecs().ToString();
+        pingInfo["remote_time"] = Time.GetTicksMsec().ToString();
         // Send back a ping request
-        networkAdaptor.PingBackPeer(peerID, GD.Var2Bytes(pingInfo));
+        networkAdaptor.PingBackPeer(peerID, GD.VarToBytes(pingInfo));
     }
 
     // When someone pinged us back
     private void OnPingedBack (int peerID, byte[] message)
     {
-        Dictionary pingInfo = GD.Bytes2Var(message) as Dictionary;
+        Dictionary pingInfo = (Dictionary)GD.BytesToVar(message);
         
-        ulong systemTime = OS.GetSystemTimeMsecs();
-        int peerId = GetTree().GetRpcSenderId();
+        ulong systemTime = Time.GetTicksMsec();
+        int peerId = Multiplayer.GetRemoteSenderId();
         Peer peer = _peers[peerId];
 
         peer.LastPingReceived = systemTime;
@@ -238,11 +237,11 @@ public class SyncManager : Node
 
     public async void Start ()
     {
-        Debug.Assert(GetTree().IsNetworkServer(), "Start() should only be called on the host");
+        Debug.Assert(Multiplayer.IsServer(), "Start() should only be called on the host");
         if (started)
             return;
         
-        if (GetTree().IsNetworkServer())
+        if (Multiplayer.IsServer())
         {
             ulong highestRtt = 0;
             foreach (Peer peer in _peers.Values)
@@ -274,11 +273,11 @@ public class SyncManager : Node
         _loggedRemoteState.Clear();
     }
 
-    [RemoteSync]
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true)]
     private void RemoteStart ()
     {
         Reset();
-        _tickTime = (1.0f / Engine.IterationsPerSecond);
+        _tickTime = (1.0f / Engine.PhysicsTicksPerSecond);
         started = true;
         networkAdaptor.Start(this);
         EmitSignal(nameof(SyncStarted));
@@ -286,7 +285,7 @@ public class SyncManager : Node
 
     public void Stop ()
     {
-        if (GetTree().IsNetworkServer())
+        if (Multiplayer.IsServer())
         {
             Rpc(nameof(RemoteStop));
         }
@@ -296,7 +295,7 @@ public class SyncManager : Node
         }
     }
 
-    [RemoteSync]
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true)]
     private void RemoteStop ()
     {
         networkAdaptor.Stop(this);
@@ -319,11 +318,11 @@ public class SyncManager : Node
     private LocalPeerInputs CallGetLocalInput ()
     {
         LocalPeerInputs input = new LocalPeerInputs();
-        Array nodes = GetTree().GetNodesInGroup("network_sync");
+        var nodes = GetTree().GetNodesInGroup("network_sync");
         
         foreach (Node node in nodes)
         {
-            if (node.IsNetworkMaster() && node is INetworkedInputs networkedInputs && node.IsInsideTree())
+            if (node.IsMultiplayerAuthority() && node is INetworkedInputs networkedInputs && node.IsInsideTree())
             {
                 var nodeInput = networkedInputs.GetLocalInput();
                 if (nodeInput.inputs.Count > 0)
@@ -337,11 +336,11 @@ public class SyncManager : Node
     private LocalPeerInputs CallPredictNetworkInput (LocalPeerInputs previousInput, int ticksSinceRealInput)
     {
         LocalPeerInputs input = new LocalPeerInputs();
-        Array nodes = GetTree().GetNodesInGroup("network_sync");
+        var nodes = GetTree().GetNodesInGroup("network_sync");
 
         foreach (Node node in nodes)
         {
-            if (node.IsNetworkMaster()) continue;
+            if (node.IsMultiplayerAuthority()) continue;
 
             var nodePathStr = node.GetPath().ToString();
             if (previousInput.NodeInputsMap.ContainsKey(nodePathStr))
@@ -365,7 +364,7 @@ public class SyncManager : Node
     
     public void CallNetworkProcess (float delta, InputBufferFrame inputFrame)
     {
-        Array nodes = GetTree().GetNodesInGroup("network_sync");
+        var nodes = GetTree().GetNodesInGroup("network_sync");
         var i = nodes.Count;
 
         while (i > 0)
@@ -374,7 +373,7 @@ public class SyncManager : Node
             Node node = nodes[i] as Node;
             if (node is INetworkable p && node.IsInsideTree())
             {
-                var playerInput = inputFrame.GetPlayerInput(node.GetNetworkMaster());
+                var playerInput = inputFrame.GetPlayerInput(node.GetMultiplayerAuthority());
                 p.NetworkTick(delta, (playerInput.NodeInputsMap.ContainsKey(node.GetPath().ToString()) ? playerInput[node.GetPath().ToString()]: new NodeInputs()));
             }
         }
@@ -383,7 +382,7 @@ public class SyncManager : Node
     public G.Dictionary<string, G.Dictionary<string, string>> CallSaveState ()
     {
         G.Dictionary<string, G.Dictionary<string, string>> state = new G.Dictionary<string, G.Dictionary<string, string>>();
-        Array nodes = GetTree().GetNodesInGroup("network_sync");
+        var nodes = GetTree().GetNodesInGroup("network_sync");
 
         foreach (Node node in nodes)
         {
@@ -438,7 +437,7 @@ public class SyncManager : Node
         var stateData = CallSaveState();
         _stateBuffer.Add(new StateBufferFrame(currentTick, stateData));
 
-        if(LOG_STATE && !GetTree().IsNetworkServer() && IsPlayerInputComplete(currentTick))
+        if(LOG_STATE && !Multiplayer.IsServer() && IsPlayerInputComplete(currentTick))
         {
             RpcId(1, nameof(LogSavedState), currentTick, stateData);
         }
@@ -573,7 +572,7 @@ public class SyncManager : Node
 
     public NodeInputs GetLatestInputForNode (Node node)
     {
-        return GetLatestInputFromPeerForPath(node.GetNetworkMaster(), node.GetPath().ToString());
+        return GetLatestInputFromPeerForPath(node.GetMultiplayerAuthority(), node.GetPath().ToString());
     }
     
     public NodeInputs GetLatestInputFromPeerForPath (int peerID, string path)
@@ -705,7 +704,7 @@ public class SyncManager : Node
 
     public void SendInputMessageToPeer (int peerID)
     {
-        Debug.Assert(peerID != GetTree().GetNetworkUniqueId(), "Cannot send input to ourselves ");
+        Debug.Assert(peerID != Multiplayer.GetUniqueId(), "Cannot send input to ourselves ");
         Peer peer = _peers[peerID];
 
         foreach (var input in GetInputMessagesFromSendQueueForPeer(peer))
@@ -714,10 +713,10 @@ public class SyncManager : Node
             {
                 { ((int)InputMessageKey.NEXT_TICK_REQUESTED).ToString(), (peer.LastRemoteTickReceived + 1).ToString() },
                 //{ ((int)InputMessageKey.INPUT).ToString(), JSON.Print(input) }
-                { ((int)InputMessageKey.INPUT).ToString(), JSON.Print(input) }
+                { ((int)InputMessageKey.INPUT).ToString(), Json.Stringify(input) }
             };
 
-            byte[] bytes = Encoding.ASCII.GetBytes(JSON.Print(msg));
+            byte[] bytes = Encoding.ASCII.GetBytes(Json.Stringify(msg));
 
             if (bytes.Length > DEBUG_MESSAGE_BYTE)
             {
@@ -736,7 +735,7 @@ public class SyncManager : Node
         }
     }
 
-    public override void _PhysicsProcess (float delta)
+    public override void _PhysicsProcess (double delta)
     {
         if (!started) return;
 
@@ -780,14 +779,14 @@ public class SyncManager : Node
             while (rollbackTicks > 0)
             {
                 currentTick += 1;
-                DoTick(delta, true);
+                DoTick((float)delta, true);
                 rollbackTicks -= 1;
             }
             
             Debug.Assert(currentTick == originalTick, "Rollback didn't return to the original tick");
         }
 
-        if (GetTree().IsNetworkServer() && _loggedRemoteState.Count > 0)
+        if (Multiplayer.IsServer() && _loggedRemoteState.Count > 0)
         {
             ProcessLoggedRemoteState();
         }
@@ -859,7 +858,7 @@ public class SyncManager : Node
         
         var localInput = CallGetLocalInput();
         CalculateInputHash(localInput);
-        inputFrame.Players[GetTree().GetNetworkUniqueId()] = new InputForPlayer(localInput, false);
+        inputFrame.Players[Multiplayer.GetUniqueId()] = new InputForPlayer(localInput, false);
         //This is what sends the inputs, jesus crist, it took a long time to find it!
         //_inputSendQueue.Add(Encoding.ASCII.GetBytes(JSON.Print(localInput)));
         _inputSendQueue.Add(localInput.Serialize());
@@ -871,7 +870,7 @@ public class SyncManager : Node
 
         if (currentTick > 0)
         {
-            DoTick(delta);
+            DoTick((float)delta);
 
             if (INTERPOLATION)
             {
@@ -903,11 +902,11 @@ public class SyncManager : Node
         return bytes;
     }
 
-    public override void _Process (float delta)
+    public override void _Process (double delta)
     {
         if (!started) return;
 
-        timeSinceLastTick += delta;
+        timeSinceLastTick += (float)delta;
         
         networkAdaptor.Poll();
 
@@ -948,10 +947,10 @@ public class SyncManager : Node
         //TODO planned rework: use a class/struct instead of dictionaries
         string raw = Encoding.ASCII.GetString(serializedMsg);
         //GD.Print(raw);
-        Dictionary rawAsDictionary = JSON.Parse(raw).Result as Dictionary;
+        Dictionary rawAsDictionary = (Dictionary)Json.ParseString(raw);
         G.Dictionary<string, string> msg = new G.Dictionary<string, string>(rawAsDictionary);
         
-        G.Dictionary parsing = JSON.Parse(msg[ ((int)InputMessageKey.INPUT).ToString() ]).Result as G.Dictionary;
+        G.Dictionary parsing = (Dictionary)Json.ParseString(msg[ ((int)InputMessageKey.INPUT).ToString() ]);
         G.Dictionary<string, string> converted = new G.Dictionary<string, string>(parsing);
 
         G.Dictionary<int, string> allRemoteInput = new G.Dictionary<int, string>();
@@ -1038,12 +1037,13 @@ public class SyncManager : Node
         peer.RemoteLag = (peer.LastRemoteTickReceived + 1) - peer.NextLocalTickRequested;
     }
 
-    [Master]
+    //The master and mastersync rpc behavior is not officially supported anymore. Try using another keyword or making custom logic using Multiplayer.GetRemoteSenderId()
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true)]
     public void LogSavedState (int tick, G.Dictionary<string, G.Dictionary<string, string>> remoteData)
     {
         if (!started) return;
         
-        int peerId = GetTree().GetRpcSenderId();
+        int peerId = Multiplayer.GetRemoteSenderId();
         if (!_loggedRemoteState.ContainsKey(peerId))
         {
             _loggedRemoteState[peerId] = new G.Array<StateBufferFrame>();

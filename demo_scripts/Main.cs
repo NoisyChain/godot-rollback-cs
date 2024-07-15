@@ -3,7 +3,7 @@ using System;
 using System.ComponentModel;
 using System.Linq;
 
-public class Main : Node2D
+public partial class Main : Node2D
 {
     public Control ConnectionPanel;
     public Label MessageLabel;
@@ -15,13 +15,13 @@ public class Main : Node2D
         ConnectionPanel = GetNode<Control>("CanvasLayer/ConnectionPanel");
         MessageLabel = GetNode<Label>("CanvasLayer/MessageLabel");
         
-        GetTree().Connect("network_peer_connected", this, nameof(OnNetworkPeerConnected));
-        GetTree().Connect("network_peer_disconnected", this, nameof(OnNetworkPeerDisconnected));
-        GetTree().Connect("server_disconnected", this, nameof(OnServerDisconnected));
-        SyncManager.singleton.Connect(nameof(SyncManager.SyncStarted), this, nameof(OnSyncManagerSyncStarted));
-        SyncManager.singleton.Connect(nameof(SyncManager.SyncLost), this, nameof(OnSyncManagerSyncLost));
-        SyncManager.singleton.Connect(nameof(SyncManager.SyncRegained), this, nameof(OnSyncManagerSyncRegained));
-        SyncManager.singleton.Connect(nameof(SyncManager.SyncError), this, nameof(OnSyncManagerSyncError));
+        Multiplayer.Connect("peer_connected", new Callable(this, nameof(OnNetworkPeerConnected)));
+        Multiplayer.Connect("peer_disconnected", new Callable(this, nameof(OnNetworkPeerDisconnected)));
+        Multiplayer.Connect("server_disconnected", new Callable(this, nameof(OnServerDisconnected)));
+        SyncManager.singleton.Connect(nameof(SyncManager.SyncStarted), new Callable(this, nameof(OnSyncManagerSyncStarted)));
+        SyncManager.singleton.Connect(nameof(SyncManager.SyncLost), new Callable(this, nameof(OnSyncManagerSyncLost)));
+        SyncManager.singleton.Connect(nameof(SyncManager.SyncRegained), new Callable(this, nameof(OnSyncManagerSyncRegained)));
+        SyncManager.singleton.Connect(nameof(SyncManager.SyncError), new Callable(this, nameof(OnSyncManagerSyncError)));
 
         var cmdlineArgs = OS.GetCmdlineArgs();
         if(cmdlineArgs.Contains("server"))
@@ -33,22 +33,22 @@ public class Main : Node2D
 
     public void _on_ServerButton_pressed ()
     {
-        var peer = new NetworkedMultiplayerENet();
+        var peer = new ENetMultiplayerPeer();
         peer.CreateServer(SERVER_PORT, 2);
         
-        UPNP upnp = new UPNP();
+        Upnp upnp = new Upnp();
         upnp.Discover();
         upnp.AddPortMapping(SERVER_PORT);
         
-        GetTree().NetworkPeer = peer;
+        Multiplayer.MultiplayerPeer = peer;
         ConnectionPanel.Visible = false;
     }
 
     public void _on_ClientButton1_pressed ()
     {
-        var peer = new NetworkedMultiplayerENet();
+        var peer = new ENetMultiplayerPeer();
         peer.CreateClient(GetNode<LineEdit>("CanvasLayer/ConnectionPanel/Address").Text, SERVER_PORT);
-        GetTree().NetworkPeer = peer;
+        Multiplayer.MultiplayerPeer = peer;
         ConnectionPanel.Visible = false;
         MessageLabel.Text = "Connecting...";
     }
@@ -57,19 +57,19 @@ public class Main : Node2D
     {
         GD.Print("peer " + peerID + " connected");
         
-        GetNode("ServerPlayer").SetNetworkMaster(1);
-        if (GetTree().IsNetworkServer())
+        GetNode("ServerPlayer").SetMultiplayerAuthority(1);
+        if (Multiplayer.IsServer())
         {
-            GetNode("ClientPlayer").SetNetworkMaster(peerID);
+            GetNode("ClientPlayer").SetMultiplayerAuthority(peerID);
         }
         else
         {
-            GetNode("ClientPlayer").SetNetworkMaster(GetTree().GetNetworkUniqueId());
+            GetNode("ClientPlayer").SetMultiplayerAuthority(Multiplayer.GetUniqueId());
         }
         
         SyncManager.singleton.AddPeer(peerID);
 
-        if (GetTree().IsNetworkServer())
+        if (Multiplayer.IsServer())
         {
             MessageLabel.Text = "Starting...";
             await ToSignal(GetTree().CreateTimer(2.0f), "timeout");
@@ -107,7 +107,7 @@ public class Main : Node2D
     public void OnSyncManagerSyncError (string msg)
     {
         MessageLabel.Text = "Fatal sync error: " + msg;
-        var peer = GetTree().NetworkPeer;
+        var peer = Multiplayer.MultiplayerPeer;
         if (peer != null)
         {
             

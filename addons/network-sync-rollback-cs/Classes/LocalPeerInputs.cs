@@ -5,7 +5,7 @@ using System.Text;
 /// <summary>
 /// Represent the Inputs of all the nodes living in a peer game instance
 /// </summary>
-public class LocalPeerInputs : Godot.Object
+public partial class LocalPeerInputs : Godot.GodotObject
 {
     /// <summary>
     /// Key is the path of the node
@@ -115,7 +115,7 @@ public class LocalPeerInputs : Godot.Object
 /// <summary>
 /// Represent the Inputs for a Node
 /// </summary>
-public class NodeInputs
+public partial class NodeInputs
 {
     /// <summary>
     /// Key is an unique identifier, i.e 1=X Axis, 2=Jump etc...

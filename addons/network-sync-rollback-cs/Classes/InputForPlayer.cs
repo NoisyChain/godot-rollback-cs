@@ -1,7 +1,7 @@
-﻿using Godot;
+using Godot;
 using Godot.Collections;
 
-public class InputForPlayer : Reference
+public partial class InputForPlayer : RefCounted
 {
     public LocalPeerInputs Input;
     public bool Predicted;

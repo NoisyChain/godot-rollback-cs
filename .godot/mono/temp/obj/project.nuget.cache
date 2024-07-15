@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "19BpOnqKqdo=",
+  "success": true,
+  "projectFilePath": "D:\\Rodolfo\\Projects\\Godot Projects\\Git-personal\\godot-rollback-cs\\UDP Rollback.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\rodol\\.nuget\\packages\\godot.sourcegenerators\\4.2.1\\godot.sourcegenerators.4.2.1.nupkg.sha512",
+    "C:\\Users\\rodol\\.nuget\\packages\\godotsharp\\4.2.1\\godotsharp.4.2.1.nupkg.sha512",
+    "C:\\Users\\rodol\\.nuget\\packages\\godotsharpeditor\\4.2.1\\godotsharpeditor.4.2.1.nupkg.sha512",
+    "C:\\Users\\rodol\\.nuget\\packages\\litenetlib\\1.2.0\\litenetlib.1.2.0.nupkg.sha512"
+  ],
+  "logs": []
+}

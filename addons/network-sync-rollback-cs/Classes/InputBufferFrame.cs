@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Godot;
 using Godot.Collections;
 using G = Godot.Collections;
 
-public class InputBufferFrame : Reference
+public partial class InputBufferFrame : RefCounted
 {
     public int Tick;
     public G.Dictionary<int, InputForPlayer> Players = new G.Dictionary<int, InputForPlayer>();

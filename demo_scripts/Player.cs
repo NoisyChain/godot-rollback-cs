@@ -3,7 +3,7 @@ using System;
 using System.Linq;
 using Godot.Collections;
 
-public class Player : Sprite, INetworkable, INetworkedInputs
+public partial class Player : Sprite2D, INetworkable, INetworkedInputs
 {
     float Lerp(float firstFloat, float secondFloat, float by)
     {
@@ -12,8 +12,8 @@ public class Player : Sprite, INetworkable, INetworkedInputs
     
     Vector2 Lerp(Vector2 firstVector, Vector2 secondVector, float by)
     {
-        float retX = Lerp(firstVector.x, secondVector.x, by);
-        float retY = Lerp(firstVector.y, secondVector.y, by);
+        float retX = Lerp(firstVector.X, secondVector.X, by);
+        float retY = Lerp(firstVector.Y, secondVector.Y, by);
         return new Vector2(retX, retY);
     }
     
@@ -29,7 +29,7 @@ public class Player : Sprite, INetworkable, INetworkedInputs
     {
         return new Dictionary<string, string>
         {
-            {"position", Position.x + "|" + Position.y}
+            {"position", Position.X + "|" + Position.Y}
         };
     }
 
@@ -52,7 +52,7 @@ public class Player : Sprite, INetworkable, INetworkedInputs
         NodeInputs input = new NodeInputs();
 
         if (axis != Vector2.Zero)
-            input[0] = axis.x + "|" + axis.y;
+            input[0] = axis.X + "|" + axis.Y;
 
         return input;
     }

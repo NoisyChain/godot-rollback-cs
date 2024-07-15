@@ -5,11 +5,11 @@ using System;
 /// Abstract class to make your own network adaptor
 /// You'll need to provide way to send crucial data for the SyncManager
 /// </summary>
-public abstract class NetworkAdaptor : Node
+public abstract partial class NetworkAdaptor : Node
 {
-    [Signal] public delegate void ReceivedInputTick (int peerID, byte[] msg);
-    [Signal] public delegate void Pinged (int peerID, byte[] msg);
-    [Signal] public delegate void PingedBack (int peerID, byte[] msg);
+    [Signal] public delegate void ReceivedInputTickEventHandler (int peerID, byte[] msg);
+    [Signal] public delegate void PingedEventHandler (int peerID, byte[] msg);
+    [Signal] public delegate void PingedBackEventHandler (int peerID, byte[] msg);
     
     public virtual void Attach (SyncManager manager) {}
     public virtual void Detach (SyncManager manager) {}
